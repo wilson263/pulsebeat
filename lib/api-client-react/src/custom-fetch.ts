@@ -248,6 +248,16 @@ function resolveInputUrl(input: RequestInfo | URL): RequestInfo | URL {
   return input;
 }
 
+function getAuthHeader(): Record<string, string> {
+  try {
+    const token = typeof localStorage !== "undefined" ? localStorage.getItem("pulsebeat_token") : null;
+    if (token) return { Authorization: `Bearer ${token}` };
+  } catch {
+    // localStorage not available
+  }
+  return {};
+}
+
 export async function customFetch<T = unknown>(
   input: RequestInfo | URL,
   options: CustomFetchOptions = {},
@@ -261,7 +271,7 @@ export async function customFetch<T = unknown>(
     throw new TypeError(`customFetch: ${method} requests cannot have a body.`);
   }
 
-  const headers = mergeHeaders(isRequest(resolvedInput) ? resolvedInput.headers : undefined, headersInit);
+  const headers = mergeHeaders(isRequest(resolvedInput) ? resolvedInput.headers : undefined, getAuthHeader(), headersInit);
 
   if (
     typeof init.body === "string" &&
