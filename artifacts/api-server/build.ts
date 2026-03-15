@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const allowlist = [
   "@google/generative-ai",
   "axios",
-  "bcrypt",
+  "bcryptjs",
   "connect-pg-simple",
   "cors",
   "date-fns",
