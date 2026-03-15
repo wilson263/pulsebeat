@@ -11,9 +11,9 @@ export default function Contact() {
     return null;
   }
 
-  const WHATSAPP_NUMBER = "14155238886";
-  const GMAIL_ADDRESS = "support@pulsebeat.app";
-  const OFFICE_EMAIL = "hello@pulsebeat.app";
+  const WHATSAPP_NUMBER = "8639922432";
+  const GMAIL_ADDRESS = "pulsebeatsupport@gmail.com";
+  const OFFICE_EMAIL = "pulsebeatsupport@gmail.com";
 
   const contactCards = [
     {
@@ -30,7 +30,7 @@ export default function Contact() {
     {
       icon: <MessageCircle className="h-6 w-6" />,
       label: "WhatsApp",
-      value: "+1 (415) 523-8886",
+      value: "+91 8639922432",
       sub: "Chat with us instantly",
       color: "#25D366",
       glow: "rgba(37,211,102,0.25)",
@@ -45,7 +45,7 @@ export default function Contact() {
     {
       icon: <Phone className="h-6 w-6" />,
       label: "Phone",
-      value: "+1 (800) PULSEBT",
+      value: "+91 8639922432",
       sub: "Mon–Fri, 9 AM – 6 PM EST",
       color: "#00F0FF",
       glow: "rgba(0,240,255,0.25)",
