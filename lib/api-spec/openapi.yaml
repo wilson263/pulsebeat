@@ -1,0 +1,428 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: PulseBeat AI Health Application API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: scan
+    description: Biometric scanning operations
+  - name: music
+    description: Music recommendation operations
+  - name: dashboard
+    description: Dashboard data operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      summary: Create a new account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Login to account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Logout
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get current user
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /scan:
+    post:
+      operationId: analyzeScan
+      tags: [scan]
+      summary: Analyze biometric scan from video
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                video:
+                  type: string
+                  format: binary
+                  description: Recorded facial video file
+              required:
+                - video
+      responses:
+        "200":
+          description: Biometric analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanResult"
+        "400":
+          description: Invalid video
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Analysis failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /scan/history:
+    get:
+      operationId: getScanHistory
+      tags: [scan]
+      summary: Get scan history for current user
+      responses:
+        "200":
+          description: List of past scans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ScanRecord"
+
+  /music/recommendations:
+    get:
+      operationId: getMusicRecommendations
+      tags: [music]
+      summary: Get music recommendations based on mood
+      parameters:
+        - name: mood
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [Relaxed, Normal, Excited, Stressed]
+      responses:
+        "200":
+          description: List of music recommendations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MusicRecommendationsResponse"
+        "400":
+          description: Invalid mood
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    SignupRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+      required:
+        - name
+        - email
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/UserResponse"
+        message:
+          type: string
+      required:
+        - user
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - createdAt
+
+    ScanResult:
+      type: object
+      properties:
+        heartRate:
+          type: number
+          description: Heart rate in BPM
+        respiratoryRate:
+          type: number
+          description: Respiratory rate in breaths per minute
+        hrvSdnn:
+          type: number
+          description: Heart rate variability SDNN
+        mood:
+          type: string
+          enum: [Relaxed, Normal, Excited, Stressed]
+        ppgWaveform:
+          type: array
+          items:
+            type: number
+          description: PPG waveform data points
+        confidence:
+          type: number
+          description: Analysis confidence score 0-1
+        scanId:
+          type: integer
+          description: Saved scan record ID
+      required:
+        - heartRate
+        - respiratoryRate
+        - mood
+        - confidence
+
+    ScanRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        heartRate:
+          type: number
+        respiratoryRate:
+          type: number
+        hrvSdnn:
+          type: number
+        mood:
+          type: string
+          enum: [Relaxed, Normal, Excited, Stressed]
+        confidence:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - heartRate
+        - respiratoryRate
+        - mood
+        - createdAt
+
+    MusicTrack:
+      type: object
+      properties:
+        videoId:
+          type: string
+        title:
+          type: string
+        channelTitle:
+          type: string
+        thumbnail:
+          type: string
+        duration:
+          type: string
+      required:
+        - videoId
+        - title
+        - channelTitle
+        - thumbnail
+
+    MusicRecommendationsResponse:
+      type: object
+      properties:
+        mood:
+          type: string
+        genre:
+          type: string
+        tracks:
+          type: array
+          items:
+            $ref: "#/components/schemas/MusicTrack"
+      required:
+        - mood
+        - genre
+        - tracks
+
+    DashboardStats:
+      type: object
+      properties:
+        totalScans:
+          type: integer
+        averageHeartRate:
+          type: number
+        averageRespiratoryRate:
+          type: number
+        moodDistribution:
+          type: object
+          additionalProperties:
+            type: integer
+        recentScans:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScanRecord"
+        heartRateTrend:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              heartRate:
+                type: number
+            required:
+              - date
+              - heartRate
+      required:
+        - totalScans
+        - averageHeartRate
+        - averageRespiratoryRate
+        - moodDistribution
+        - recentScans
+        - heartRateTrend
