@@ -10,7 +10,7 @@ services:
     name: pulsebeat-api
     runtime: node
     plan: free
-    buildCommand: npm install -g pnpm@latest && pnpm install && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/db run push-force
+    buildCommand: npm install -g pnpm@10.26.1 && pnpm install && pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/db run push-force
     startCommand: node artifacts/api-server/dist/index.cjs
     healthCheckPath: /api/healthz
     envVars:
@@ -35,7 +35,7 @@ services:
   - type: web
     name: pulsebeat-frontend
     runtime: static
-    buildCommand: npm install -g pnpm@latest && pnpm install && BASE_PATH=/ pnpm --filter @workspace/pulsebeat run build
+    buildCommand: npm install -g pnpm@10.26.1 && pnpm install && BASE_PATH=/ pnpm --filter @workspace/pulsebeat run build
     staticPublishPath: artifacts/pulsebeat/dist/public
     envVars:
       - key: VITE_API_URL
