@@ -1,5 +1,19 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
+function getBestMimeType(): string {
+  const candidates = [
+    'video/mp4;codecs=avc1.42E01E',
+    'video/mp4',
+    'video/webm;codecs=vp9',
+    'video/webm;codecs=vp8',
+    'video/webm',
+  ];
+  for (const mime of candidates) {
+    if (MediaRecorder.isTypeSupported(mime)) return mime;
+  }
+  return 'video/webm';
+}
+
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -11,9 +25,14 @@ export function useCamera() {
   const startStream = useCallback(async () => {
     try {
       setError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, 
-        audio: false 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30, min: 20 },
+        },
+        audio: false,
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -40,14 +59,22 @@ export function useCamera() {
     };
   }, [stopStream]);
 
-  const recordVideo = useCallback((durationMs: number = 8000): Promise<Blob> => {
+  const recordVideo = useCallback((durationMs: number = 15000): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       if (!videoRef.current || !videoRef.current.srcObject) {
         return reject(new Error("No active stream"));
       }
-      
+
       const stream = videoRef.current.srcObject as MediaStream;
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      const mimeType = getBestMimeType();
+
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 2_000_000 });
+      } catch {
+        mediaRecorder = new MediaRecorder(stream);
+      }
+
       mediaRecorderRef.current = mediaRecorder;
       const chunks: BlobPart[] = [];
 
@@ -56,11 +83,11 @@ export function useCamera() {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
+        const blob = new Blob(chunks, { type: mimeType.split(';')[0] });
         resolve(blob);
       };
 
-      mediaRecorder.start();
+      mediaRecorder.start(500);
       setIsRecording(true);
       setProgress(0);
 
@@ -81,14 +108,14 @@ export function useCamera() {
     });
   }, []);
 
-  return { 
-    videoRef, 
-    isStreaming, 
-    isRecording, 
-    progress, 
+  return {
+    videoRef,
+    isStreaming,
+    isRecording,
+    progress,
     error,
-    startStream, 
-    stopStream, 
-    recordVideo 
+    startStream,
+    stopStream,
+    recordVideo,
   };
 }
