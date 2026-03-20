@@ -1,8 +1,8 @@
-# PulseBeat Workspace
+# Workspace
 
 ## Overview
 
-PulseBeat is an AI Health Application — a full-stack monorepo using TypeScript, React (Vite), and Express with PostgreSQL.
+pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
 
 ## Stack
 
@@ -10,77 +10,113 @@ PulseBeat is an AI Health Application — a full-stack monorepo using TypeScript
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **Frontend**: React + Vite + TailwindCSS + shadcn/ui
 - **API framework**: Express 5
 - **Database**: PostgreSQL + Drizzle ORM
-- **Auth**: JWT (jsonwebtoken + bcrypt)
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
-- **File uploads**: multer
 
 ## Structure
 
 ```text
 artifacts-monorepo/
-├── artifacts/
-│   ├── api-server/         # Express API server (auth, scan, music, dashboard routes)
-│   └── pulsebeat/          # React + Vite frontend
+├── artifacts/              # Deployable applications
+│   └── api-server/         # Express API server
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts
-├── render.yaml             # Render.com deployment configuration
-├── pnpm-workspace.yaml
-├── tsconfig.base.json
-├── tsconfig.json
-└── package.json
+├── scripts/                # Utility scripts (single workspace package)
+│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
+├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
+├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
+├── tsconfig.json           # Root TS project references
+└── package.json            # Root package with hoisted devDeps
 ```
 
-## Features
+## TypeScript & Composite Projects
 
-- User authentication (signup/login/logout)
-- Biometric scanning (camera + VitalLens API)
-- AI music recommendations based on mood
-- Health dashboard with scan history
+Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
 
-## API Routes
+- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
+- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
+- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
 
-- `GET /api/healthz` — health check
-- `POST /api/auth/signup` — create account
-- `POST /api/auth/login` — login
-- `POST /api/auth/logout` — logout
-- `GET /api/auth/me` — get current user
-- `POST /api/scan/analyze` — analyze biometric scan
-- `GET /api/scan/history` — scan history
-- `GET /api/music/recommendations` — music recommendations
-- `GET /api/dashboard/stats` — dashboard statistics
+## Root Scripts
 
-## Environment Variables
+- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
+- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
 
-- `DATABASE_URL` — PostgreSQL connection string (auto-provisioned by Replit)
-- `SESSION_SECRET` — JWT signing secret
-- `VITALLENS_API_KEY` — VitalLens biometric API key (optional)
-- `YOUTUBE_API_KEY` — YouTube Data API key (optional)
-- `FRONTEND_URL` — Frontend URL for CORS (production)
+## Artifacts
 
-## Deploy to Render
+### `artifacts/pulsebeat` (`@workspace/pulsebeat`)
 
-The project includes a `render.yaml` for one-click deployment to Render.com:
-1. Push the code to GitHub
-2. Connect the repo in Render.com → "New Blueprint"
-3. Set the environment variables: `VITALLENS_API_KEY`, `YOUTUBE_API_KEY`, `FRONTEND_URL`
+React + Vite frontend for the PulseBeat rPPG heart rate checker app. Features:
+- Camera-based biometric scanning using VitalLens API
+- 15-second scan duration (increased from 8s for ~95% accuracy target)
+- Codec-aware video recording (prefers H.264 MP4, falls back to WebM)
+- Explicit 30fps constraint for better rPPG signal
+- Low-confidence warning UI with actionable advice
+- Confidence percentage displayed on results
+- Music recommendations based on detected mood
 
-## Development
+Key accuracy improvements in `src/hooks/use-camera.ts`:
+- `getBestMimeType()` — picks H.264 MP4 > VP9 WebM > VP8 WebM for best VitalLens input
+- `frameRate: { ideal: 30, min: 20 }` constraint
+- 15s default recording duration
+- 500ms timeslice for incremental data collection
 
-- `pnpm --filter @workspace/api-server run dev` — run API server
-- `PORT=21708 pnpm --filter @workspace/pulsebeat run dev` — run frontend
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks
-- `pnpm --filter @workspace/db run push-force` — push DB schema
+Key accuracy improvements in `artifacts/api-server/src/routes/scan.ts`:
+- `extractBpmFromPpg()` — autocorrelation-based BPM from PPG waveform as cross-check
+- `applyCalibration()` — confidence-weighted bias correction (-0.7 to -1.5 BPM)
+- Physiological validity clamping (40–200 BPM)
+- Multi-signal weighted blending (VitalLens HR 65% + PPG-derived 35% when close)
+- `lowConfidence` flag returned when confidence < 0.70
 
-## TypeScript
+## Packages
 
-- Always typecheck from the root: `pnpm run typecheck`
-- Run codegen after OpenAPI spec changes: `pnpm --filter @workspace/api-spec run codegen`
+### `artifacts/api-server` (`@workspace/api-server`)
+
+Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+
+- Entry: `src/index.ts` — reads `PORT`, starts Express
+- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
+- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
+- Depends on: `@workspace/db`, `@workspace/api-zod`
+- `pnpm --filter @workspace/api-server run dev` — run the dev server
+- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
+- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+
+### `lib/db` (`@workspace/db`)
+
+Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
+
+- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
+- `src/schema/index.ts` — barrel re-export of all models
+- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
+- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
+- Exports: `.` (pool, db, schema), `./schema` (schema only)
+
+Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+
+### `lib/api-spec` (`@workspace/api-spec`)
+
+Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
+
+1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
+2. `lib/api-zod/src/generated/` — Zod schemas
+
+Run codegen: `pnpm --filter @workspace/api-spec run codegen`
+
+### `lib/api-zod` (`@workspace/api-zod`)
+
+Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
+
+### `lib/api-client-react` (`@workspace/api-client-react`)
+
+Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
+
+### `scripts` (`@workspace/scripts`)
+
+Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
