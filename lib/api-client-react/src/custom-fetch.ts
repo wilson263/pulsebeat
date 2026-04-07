@@ -237,8 +237,8 @@ async function parseSuccessBody(
 
 const API_BASE_URL: string =
   typeof import.meta !== "undefined" &&
-  typeof (import.meta as Record<string, unknown>).env !== "undefined"
-    ? ((import.meta as Record<string, unknown>).env as Record<string, string>)["VITE_API_URL"] ?? ""
+  typeof (import.meta as unknown as Record<string, unknown>).env !== "undefined"
+    ? ((import.meta as unknown as Record<string, unknown>).env as Record<string, string>)["VITE_API_URL"] ?? ""
     : "";
 
 function resolveInputUrl(input: RequestInfo | URL): RequestInfo | URL {
