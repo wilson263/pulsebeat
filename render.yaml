@@ -35,7 +35,7 @@ services:
   - type: web
     name: pulsebeat-frontend
     runtime: static
-    buildCommand: npm install -g pnpm@10.26.1 && pnpm install && BASE_PATH=/ pnpm --filter @workspace/pulsebeat run build
+    buildCommand: npm install -g pnpm@10.26.1 && pnpm install --no-frozen-lockfile && BASE_PATH=/ pnpm --filter @workspace/pulsebeat run build
     staticPublishPath: artifacts/pulsebeat/dist/public
     envVars:
       - key: VITE_API_URL
