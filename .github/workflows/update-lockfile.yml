@@ -1,0 +1,19 @@
+name: Update lockfile
+on:
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --no-frozen-lockfile
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "fix: update pnpm-lock.yaml"
+          file_pattern: pnpm-lock.yaml
